@@ -3,13 +3,36 @@ document.documentElement.classList.add("js");
 
 const menuButton = document.querySelector(".menu-toggle");
 const menu = document.getElementById("menu");
+const mobileMenu = window.matchMedia("(max-width: 780px)");
+const menuBackdrop = document.querySelector(".menu-backdrop");
 function setMenu(open) {
+  open = open && mobileMenu.matches;
   menuButton.setAttribute("aria-expanded", String(open));
+  menuButton.setAttribute("aria-label", open ? "Zamknij menu" : "Otwórz menu");
   menu.classList.toggle("open", open);
+  document.body.classList.toggle("menu-open", open);
+  menu.inert = mobileMenu.matches && !open;
+  document.querySelectorAll("main, footer, .skip").forEach(element => { element.inert = open; });
 }
+setMenu(false);
+mobileMenu.addEventListener("change", () => setMenu(false));
+menuBackdrop.addEventListener("click", () => { setMenu(false); menuButton.focus(); });
 menuButton.addEventListener("click", () => setMenu(!menu.classList.contains("open")));
-menu.addEventListener("click", event => {
-  if (event.target.closest("a")) setMenu(false);
+menu.closest("header").addEventListener("click", event => {
+  const link = event.target.closest("a");
+  if (!link || !mobileMenu.matches) return;
+  setMenu(false);
+  if (link.hash) {
+    const target = document.querySelector(link.hash);
+    if (target) { target.setAttribute("tabindex", "-1"); target.focus({ preventScroll: true }); }
+  }
+});
+document.addEventListener("keydown", event => {
+  if (event.key !== "Tab" || !menu.classList.contains("open")) return;
+  const links = Array.from(document.querySelectorAll("header a, .menu-toggle"));
+  const first = links[0], last = links[links.length - 1];
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 });
 
 const aiButton = document.querySelector(".ai");
@@ -38,6 +61,17 @@ for (const carousel of document.querySelectorAll("[data-carousel]")) {
   const slides = Array.from(carousel.querySelectorAll("[data-slide]"));
   let index = 0;
   let changing = false;
+  const position = carousel.querySelector("[data-position]");
+  // Fetch the neighbouring photos ahead of time so the change is instant.
+  function warmNeighbours() {
+    for (const step of [1, -1]) {
+      const slide = slides[(index + step + slides.length) % slides.length];
+      if (slide instanceof HTMLImageElement && slide.loading !== "eager") {
+        slide.loading = "eager";
+        slide.decode().catch(() => {});
+      }
+    }
+  }
   async function advance(step) {
     if (changing) return;
     changing = true;
@@ -54,6 +88,10 @@ for (const carousel of document.querySelectorAll("[data-carousel]")) {
     previous.inert = true;
     next.hidden = false;
     index = nextIndex;
+    if (position) {
+      position.textContent = String(index + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+    }
+    warmNeighbours();
     const newHeight = surface.getBoundingClientRect().height;
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       const timing = { duration: 420, easing: "cubic-bezier(.25,.7,.3,1)" };
@@ -75,6 +113,14 @@ for (const carousel of document.querySelectorAll("[data-carousel]")) {
     if (button) advance(Number(button.dataset.step));
   });
   const surface = carousel.querySelector("[aria-live]");
+  if ("IntersectionObserver" in window) {
+    const nearby = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      nearby.disconnect();
+      warmNeighbours();
+    }, { rootMargin: "400px" });
+    nearby.observe(carousel);
+  }
   let start;
   surface.addEventListener("touchstart", event => { start = event.touches[0]; }, {passive:true});
   surface.addEventListener("touchend", event => {
@@ -113,10 +159,10 @@ document.querySelector(".other .controls").addEventListener("click", event => {
 // Play each entrance once. Without animation support, the page stays visible.
 if ("IntersectionObserver" in window) {
   const revealTargets = [
-    ".hero-grid > *", ".wrap > h2", ".scene", ".scenes + .center",
+    ".wrap > h2", ".scenes + .center",
     ".team-grid > *", ".review-head", ".review-card", ".case-head",
     ".flat-gallery", ".story > *", ".case-foot", ".other > h3", ".project-track",
-    ".scope-head", ".keys", ".rows > li", ".samples",
+    ".scope-head", ".keys", "section:not(#proces) .rows > li", ".samples",
     ".budget-grid > *", ".faq-grid > .stack", ".footer-grid"
   ];
   const entrances = new IntersectionObserver(entries => {
@@ -130,6 +176,82 @@ if ("IntersectionObserver" in window) {
   for (const element of document.querySelectorAll(revealTargets.join(", "))) {
     entrances.observe(element);
   }
+
+  // Staged entrances wait until a good part of the element is on screen.
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  function countUp(element) {
+    const target = Number(element.dataset.count);
+    const duration = Math.min(1800, 900 + target / 4);
+    const started = performance.now();
+    function frame(now) {
+      const progress = Math.min(1, (now - started) / duration);
+      element.textContent = Math.round(target * (1 - Math.pow(1 - progress, 4)));
+      if (progress < 1) requestAnimationFrame(frame);
+    }
+    element.textContent = "0";
+    requestAnimationFrame(frame);
+  }
+  const stages = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      stages.unobserve(entry.target);
+      entry.target.classList.add("is-in");
+      if (!reducedMotion.matches) entry.target.querySelectorAll("[data-count]").forEach(countUp);
+    }
+  }, { threshold: .3 });
+  document.documentElement.classList.add("motion");
+  for (const element of document.querySelectorAll(".scene, .facts")) {
+    stages.observe(element);
+  }
+}
+
+// The process line fills up to a reading line a little below the middle of the screen.
+const steps = Array.from(document.querySelectorAll("#proces .rows > li"));
+let stepsUpdatePending = false;
+function updateSteps() {
+  const readingLine = document.documentElement.clientHeight * .65;
+  const tops = steps.map(step => step.getBoundingClientRect().top);
+  steps.forEach((step, index) => {
+    step.classList.toggle("is-active", tops[index] <= readingLine);
+    if (index + 1 < steps.length) {
+      const fill = (readingLine - tops[index]) / (tops[index + 1] - tops[index]);
+      step.style.setProperty("--fill", Math.min(1, Math.max(0, fill)).toFixed(3));
+    }
+  });
+  stepsUpdatePending = false;
+}
+function requestStepsUpdate() {
+  if (stepsUpdatePending) return;
+  stepsUpdatePending = true;
+  requestAnimationFrame(updateSteps);
+}
+window.addEventListener("scroll", requestStepsUpdate, { passive: true });
+window.addEventListener("resize", requestStepsUpdate);
+updateSteps();
+
+// Photos drift slightly inside their frames as the page scrolls.
+const driftingPhotos = Array.from(document.querySelectorAll(
+  ".hero-photo .cover, .team-photo img, .keys img, .samples img, .project-track figure img, .plan"
+));
+let driftUpdatePending = false;
+function updateDrift() {
+  const screenHeight = document.documentElement.clientHeight;
+  for (const photo of driftingPhotos) {
+    const frame = photo.parentElement.getBoundingClientRect();
+    if (frame.bottom < 0 || frame.top > screenHeight) continue;
+    const offset = (frame.top + frame.height / 2 - screenHeight / 2) / screenHeight;
+    photo.style.setProperty("--drift", Math.max(-1, Math.min(1, -offset)).toFixed(3));
+  }
+  driftUpdatePending = false;
+}
+if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  window.addEventListener("scroll", () => {
+    if (driftUpdatePending) return;
+    driftUpdatePending = true;
+    requestAnimationFrame(updateDrift);
+  }, { passive: true });
+  window.addEventListener("resize", updateDrift);
+  updateDrift();
 }
 
 // Separate thresholds prevent flicker while the header changes height.

@@ -163,7 +163,7 @@ if ("IntersectionObserver" in window) {
     ".team-grid > *", ".review-head", ".review-card", ".case-head",
     ".flat-gallery", ".story > *", ".case-foot", ".other > h3", ".project-track",
     ".scope-head", ".keys", "section:not(#proces) .rows > li", ".samples",
-    ".budget-grid > *", ".faq-grid > .stack", ".footer-grid"
+    ".budget-grid > *", ".faq-grid > .stack", ".closing", ".footer-grid"
   ];
   const entrances = new IntersectionObserver(entries => {
     for (const entry of entries) {

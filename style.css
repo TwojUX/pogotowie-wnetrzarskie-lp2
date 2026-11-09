@@ -61,7 +61,7 @@ header nav>a:not(.cta) {padding:14px 6px}
 .scene-shape,.person,.curve {position:absolute}
 .scene-shape {width:82.8%;top:35.25%;left:8.52%}
 .person {width:71.43%;height:72.13%;object-fit:contain;left:15.82%;bottom:0}
-.scene:nth-child(2) .person {left:3.4%}
+.scene:nth-child(2) .person {left:3.98%;top:23.61%;bottom:auto;width:92.05%;height:76.39%;object-fit:cover;object-position:center top}
 .curve {width:21.92%;left:1.95%;top:29.5%;overflow:visible}
 .scene:nth-child(2) .curve {left:auto;right:1.5%;top:30.3%}
 .ai {position:absolute;bottom:0;left:0;width:44px;height:44px;font-size:12px;border:0;border-radius:8px;background:white}
@@ -184,7 +184,7 @@ footer address {font-style:normal}
   .scene-title h3 {font-size:clamp(20px,4.9vw,26px);line-height:1.15;margin-top:8px}
   .scene .label {font-size:10px}
   .scene .scene-shape {top:auto;bottom:5%;left:auto;right:3%;width:36%;height:72%}
-  .scene .person,.scene:nth-child(2) .person {top:auto;left:auto;right:3%;bottom:0;width:38%;height:94%}
+  .scene .person,.scene:nth-child(2) .person {top:auto;left:auto;right:3%;bottom:0;width:38%;height:94%;object-fit:contain;object-position:center bottom}
   .scene .curve {display:none}
   .ai {bottom:0;left:auto;right:0;background:#ffffffde}
   .tooltip {bottom:45px;right:8px;left:auto}
@@ -506,6 +506,7 @@ html { scroll-padding-top: 116px; }
   .scene-title {width:88%}
   .scene-title h3 {font-size:20px}
   .person {height:63%}
+  .scene:nth-child(2) .person {top:37%;height:63%;width:82%;left:6%}
   .curve {top:35%}
   .scene:nth-child(2) .curve {top:35.8%}
 }

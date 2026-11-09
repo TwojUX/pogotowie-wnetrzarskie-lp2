@@ -35,25 +35,11 @@ document.addEventListener("keydown", event => {
   if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 });
 
-const aiButton = document.querySelector(".ai");
-const aiInfo = document.getElementById("ai-info");
-function setInfo(open) {
-  aiButton.setAttribute("aria-expanded", String(open));
-  aiInfo.hidden = !open;
-}
-aiButton.addEventListener("click", () => setInfo(aiInfo.hidden));
-document.addEventListener("click", event => {
-  if (!event.target.closest(".ai, .tooltip")) setInfo(false);
-});
 document.addEventListener("keydown", event => {
   if (event.key !== "Escape") return;
   if (menu.classList.contains("open")) {
     setMenu(false);
     menuButton.focus();
-  }
-  if (!aiInfo.hidden) {
-    setInfo(false);
-    aiButton.focus();
   }
 });
 
